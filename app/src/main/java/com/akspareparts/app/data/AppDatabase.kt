@@ -88,6 +88,9 @@ object SeedData {
         Part(partNumber = "4356060010", price = 185.0),
         Part(partNumber = "9091901176", price = 4.3),
         Part(partNumber = "4243112310", price = 200.0),
-        Part(partNumber = "04466-33200", price = 109.0)
+        Part(partNumber = "04466-33200", price = 109.0),
+        Part(partNumber = "04466-0K010", price = 115.0),
+        Part(partNumber = "04466-60070", price = 138.0),
+        Part(partNumber = "90919-01210", price = 25.0)
     )
 }

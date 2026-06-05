@@ -53,4 +53,17 @@ All data lives in a local Room (SQLite) database.
   All Bills (history, tap to re-share PDF).
 - **All Parts List**: global catalog, searchable.
 - **New Part**: add to global catalog (auto-suggests when adding to customers).
-- Bills export as P
+- Bills export as PDF (native `PdfDocument`) and share via WhatsApp/email/etc.
+- Global catalog pre-seeded with 28 parts on first launch.
+
+## Project layout
+
+```
+app/src/main/java/com/akspareparts/app/
+├── AKApplication.kt          service locator (Repository + SessionManager)
+├── MainActivity.kt           nav drawer + NavHost
+├── data/                     Room entities, DAOs, AppDatabase (+ seed), Repository, models
+├── prefs/SessionManager.kt   SharedPreferences (login session)
+├── pdf/BillPdfGenerator.kt   styled PDF bill
+└── ui/                       theme, screens, viewmodels, components
+```

@@ -59,17 +59,27 @@ class CustomerDetailViewModel(
         .flatMapLatest { q -> if (q.isBlank()) repo.allParts() else repo.searchParts(q) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Add a part to THIS customer (also mirrors into the global catalog). */
-    fun addPart(partNumber: String, price: Double, onDone: () -> Unit) {
+    /**
+     * Add a part to THIS customer (also mirrors into the global catalog).
+     * onResult(true)  = added, onResult(false) = customer already had this part.
+     */
+    fun addPart(partNumber: String, price: Double, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
-            repo.addCustomerPart(customerId, partNumber.trim(), price)
-            onDone()
+            val added = repo.addCustomerPart(customerId, partNumber.trim(), price)
+            onResult(added)
         }
     }
 
     fun updatePart(part: CustomerPart, onDone: () -> Unit) {
         viewModelScope.launch {
             repo.updateCustomerPart(part)
+            onDone()
+        }
+    }
+
+    fun deletePart(part: CustomerPart, onDone: () -> Unit) {
+        viewModelScope.launch {
+            repo.deleteCustomerPart(part)
             onDone()
         }
     }

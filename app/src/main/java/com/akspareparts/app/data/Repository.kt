@@ -37,19 +37,21 @@ class Repository(
     fun searchCustomerParts(customerId: Int, query: String): Flow<List<CustomerPart>> =
         customerPartDao.searchForCustomer(customerId, query)
 
-    /** Saves a part to the customer AND mirrors it into the global catalog. */
-    suspend fun addCustomerPart(customerId: Int, partNumber: String, price: Double) {
-        customerPartDao.insert(CustomerPart(customerId = customerId, partNumber = partNumber, price = price))
-        partDao.insert(Part(partNumber = partNumber, price = price))
-    }
-
-    suspend fun addCustomerParts(customerId: Int, items: List<Pair<String, Double>>) {
-        val cps = items.map { CustomerPart(customerId = customerId, partNumber = it.first, price = it.second) }
-        customerPartDao.insertAll(cps)
-        partDao.insertAll(items.map { Part(partNumber = it.first, price = it.second) })
+    /**
+     * Saves a part to the customer AND mirrors it into the global catalog.
+     * Returns false (and changes nothing) if the customer already has this part number.
+     */
+    suspend fun addCustomerPart(customerId: Int, partNumber: String, price: Double): Boolean {
+        val pn = partNumber.trim()
+        if (pn.isEmpty()) return false
+        if (customerPartDao.countForCustomer(customerId, pn) > 0) return false
+        customerPartDao.insert(CustomerPart(customerId = customerId, partNumber = pn, price = price))
+        partDao.insert(Part(partNumber = pn, price = price))
+        return true
     }
 
     suspend fun updateCustomerPart(part: CustomerPart) = customerPartDao.update(part)
+    suspend fun deleteCustomerPart(part: CustomerPart) = customerPartDao.delete(part)
 
     // Bills
     fun bills(customerId: Int): Flow<List<Bill>> = billDao.getForCustomer(customerId)

@@ -119,10 +119,11 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    fun toast(msg: String) { scope.launch { snackbar.showSnackbar(msg) } }
+
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
 
-            // --- Manual entry for a brand-new part ---
             Text("Add a new part", fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically,
@@ -145,11 +146,15 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
                 onClick = {
                     val p = price.toDoubleOrNull()
                     if (partNumber.isBlank() || p == null) {
-                        scope.launch { snackbar.showSnackbar("Enter part number and price") }
+                        toast("Enter part number and price")
                     } else {
-                        vm.addPart(partNumber, p) {
-                            partNumber = ""; price = ""
-                            scope.launch { snackbar.showSnackbar("Part added") }
+                        vm.addPart(partNumber, p) { added ->
+                            if (added) {
+                                partNumber = ""; price = ""
+                                toast("Part added")
+                            } else {
+                                toast("This part is already in this customer's list")
+                            }
                         }
                     }
                 },
@@ -160,7 +165,6 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
             HorizontalDivider()
             Spacer(Modifier.height(12.dp))
 
-            // --- Pick from the existing catalog ---
             Text("Or pick from the list (${catalog.size})", fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
@@ -188,10 +192,11 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
                             ) {
                                 FilledIconButton(
                                     onClick = {
-                                        vm.addPart(part.partNumber, part.price) {
-                                            scope.launch {
-                                                snackbar.showSnackbar("Added ${part.partNumber}")
-                                            }
+                                        vm.addPart(part.partNumber, part.price) { added ->
+                                            toast(
+                                                if (added) "Added ${part.partNumber}"
+                                                else "${part.partNumber} is already in this customer's list"
+                                            )
                                         }
                                     }
                                 ) {
@@ -236,11 +241,19 @@ private fun EditPartsTab(vm: CustomerDetailViewModel) {
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(parts, key = { it.id }) { part ->
-                        EditableRow(part) { updated ->
-                            vm.updatePart(updated) {
-                                scope.launch { snackbar.showSnackbar("Saved ${updated.partNumber}") }
+                        EditableRow(
+                            part = part,
+                            onSave = { updated ->
+                                vm.updatePart(updated) {
+                                    scope.launch { snackbar.showSnackbar("Saved ${updated.partNumber}") }
+                                }
+                            },
+                            onDelete = {
+                                vm.deletePart(part) {
+                                    scope.launch { snackbar.showSnackbar("Deleted ${part.partNumber}") }
+                                }
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -249,13 +262,19 @@ private fun EditPartsTab(vm: CustomerDetailViewModel) {
 }
 
 @Composable
-private fun EditableRow(part: CustomerPart, onSave: (CustomerPart) -> Unit) {
+private fun EditableRow(
+    part: CustomerPart,
+    onSave: (CustomerPart) -> Unit,
+    onDelete: () -> Unit
+) {
     var pn by remember(part.id) { mutableStateOf(part.partNumber) }
     var pr by remember(part.id) { mutableStateOf(fmtPrice(part.price)) }
+    var confirmDelete by remember { mutableStateOf(false) }
+
     Card(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(12.dp),
+        Row(Modifier.fillMaxWidth().padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             OutlinedTextField(value = pn, onValueChange = { pn = it },
                 label = { Text("Part") }, singleLine = true, modifier = Modifier.weight(1.4f))
             OutlinedTextField(value = pr,
@@ -270,7 +289,25 @@ private fun EditableRow(part: CustomerPart, onSave: (CustomerPart) -> Unit) {
                 Icon(Icons.Filled.Save, contentDescription = "Save",
                     tint = MaterialTheme.colorScheme.primary)
             }
+            IconButton(onClick = { confirmDelete = true }) {
+                Icon(Icons.Filled.Delete, contentDescription = "Delete",
+                    tint = MaterialTheme.colorScheme.error)
+            }
         }
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete part?") },
+            text = { Text("Remove ${part.partNumber} from this customer?") },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; onDelete() }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 
