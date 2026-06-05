@@ -109,53 +109,38 @@ private fun SoldPartsTab(vm: CustomerDetailViewModel) {
     }
 }
 
-/* ---------- Tab 2: Add New Parts (manual + autosuggest) ---------- */
+/* ---------- Tab 2: Add New Parts (manual + catalog picker) ---------- */
 @Composable
 private fun AddPartsTab(vm: CustomerDetailViewModel) {
     var partNumber by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
-    val suggestions by vm.suggestions.collectAsState()
+    val catalog by vm.catalog.collectAsState()
+    val catalogSearch by vm.catalogSearch.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
-            OutlinedTextField(
-                value = partNumber,
-                onValueChange = { partNumber = it; vm.fetchSuggestions(it) },
-                label = { Text("Part Number") }, singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (suggestions.isNotEmpty() && partNumber.isNotBlank()) {
-                Card(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    Column {
-                        suggestions.forEach { s ->
-                            Row(
-                                Modifier.fillMaxWidth().clickable {
-                                    partNumber = s.partNumber
-                                    price = fmtPrice(s.price)
-                                    vm.clearSuggestions()
-                                }.padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(s.partNumber)
-                                Text("AED ${fmtPrice(s.price)}",
-                                    color = MaterialTheme.colorScheme.primary)
-                            }
-                            HorizontalDivider()
-                        }
-                    }
-                }
+
+            // --- Manual entry for a brand-new part ---
+            Text("Add a new part", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = partNumber, onValueChange = { partNumber = it },
+                    label = { Text("Part Number") }, singleLine = true,
+                    modifier = Modifier.weight(1.4f)
+                )
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { price = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Price") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f)
+                )
             }
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = price,
-                onValueChange = { price = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text("Price (AED)") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
             Button(
                 onClick = {
                     val p = price.toDoubleOrNull()
@@ -163,13 +148,66 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
                         scope.launch { snackbar.showSnackbar("Enter part number and price") }
                     } else {
                         vm.addPart(partNumber, p) {
-                            partNumber = ""; price = ""; vm.clearSuggestions()
-                            scope.launch { snackbar.showSnackbar("Part saved") }
+                            partNumber = ""; price = ""
+                            scope.launch { snackbar.showSnackbar("Part added") }
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp)
-            ) { Text("SAVE", fontWeight = FontWeight.Bold) }
+            ) { Text("SAVE NEW PART", fontWeight = FontWeight.Bold) }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(12.dp))
+
+            // --- Pick from the existing catalog ---
+            Text("Or pick from the list (${catalog.size})", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = catalogSearch, onValueChange = vm::setCatalogSearch,
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                placeholder = { Text("Search part number") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            if (catalog.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No matching parts.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(catalog, key = { it.id }) { part ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp,
+                                    top = 4.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                FilledIconButton(
+                                    onClick = {
+                                        vm.addPart(part.partNumber, part.price) {
+                                            scope.launch {
+                                                snackbar.showSnackbar("Added ${part.partNumber}")
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = "Add to customer")
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(part.partNumber, fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f))
+                                Text("AED ${fmtPrice(part.price)}",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -246,7 +284,6 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
     val scope = rememberCoroutineScope()
     var showPreview by remember { mutableStateOf(false) }
 
-    // (Re)build the draft whenever the underlying parts list changes.
     LaunchedEffect(customerParts) { vm.loadDraft() }
 
     val grand = draft.filter { it.selected }.sumOf { it.lineTotal }

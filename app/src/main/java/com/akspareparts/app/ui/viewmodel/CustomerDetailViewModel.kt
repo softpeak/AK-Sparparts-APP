@@ -49,15 +49,17 @@ class CustomerDetailViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // ---- Tab 2: add part (manual) + autosuggest from global catalog ----
-    private val _suggestions = MutableStateFlow<List<Part>>(emptyList())
-    val suggestions: StateFlow<List<Part>> = _suggestions
+    // ---- Tab 2: browse global catalog + manual add ----
+    private val _catalogSearch = MutableStateFlow("")
+    val catalogSearch: StateFlow<String> = _catalogSearch
+    fun setCatalogSearch(q: String) { _catalogSearch.value = q }
 
-    fun fetchSuggestions(prefix: String) {
-        viewModelScope.launch { _suggestions.value = repo.suggestParts(prefix.trim()) }
-    }
-    fun clearSuggestions() { _suggestions.value = emptyList() }
+    /** Every part in the global catalog (optionally filtered by search). */
+    val catalog: StateFlow<List<Part>> = _catalogSearch
+        .flatMapLatest { q -> if (q.isBlank()) repo.allParts() else repo.searchParts(q) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Add a part to THIS customer (also mirrors into the global catalog). */
     fun addPart(partNumber: String, price: Double, onDone: () -> Unit) {
         viewModelScope.launch {
             repo.addCustomerPart(customerId, partNumber.trim(), price)
@@ -76,7 +78,6 @@ class CustomerDetailViewModel(
     private val _draft = MutableStateFlow<List<BillDraftItem>>(emptyList())
     val draft: StateFlow<List<BillDraftItem>> = _draft
 
-    /** Build the draft from this customer's parts (call when opening the Generate Bill tab). */
     fun loadDraft() {
         _draft.value = customerParts.value.map {
             BillDraftItem(partNumber = it.partNumber, unitPrice = it.price)
@@ -103,7 +104,6 @@ class CustomerDetailViewModel(
 
     private val dateFmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
-    /** Generates the PDF preview file but does NOT save to history. */
     fun generatePdf(onReady: (File) -> Unit, onError: (String) -> Unit) {
         val cust = customer.value ?: run { onError("Customer not loaded"); return }
         val selected = _draft.value.filter { it.selected }
@@ -130,7 +130,6 @@ class CustomerDetailViewModel(
         }
     }
 
-    /** Explicitly persists the current draft + generated PDF to bill history. */
     fun saveBill(onSaved: () -> Unit, onError: (String) -> Unit) {
         val cust = customer.value ?: run { onError("Customer not loaded"); return }
         val selected = _draft.value.filter { it.selected }
