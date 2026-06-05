@@ -1,25 +1,24 @@
 package com.akspareparts.app.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.akspareparts.app.R
 import com.akspareparts.app.ui.viewmodel.AuthViewModel
 
 @Composable
@@ -32,26 +31,24 @@ fun LoginScreen(authViewModel: AuthViewModel = viewModel()) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier.fillMaxSize().padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Brand logo on a dark panel (the logo's white/gold reads best on dark)
             Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(96.dp)
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFF15171C),
+                shadowElevation = 6.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Filled.Build, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(48.dp)
-                    )
-                }
+                Image(
+                    painter = painterResource(R.drawable.ak_logo),
+                    contentDescription = "AK Spare Parts",
+                    contentScale = ContentScale.FitWidth,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp)
+                )
             }
-            Spacer(Modifier.height(16.dp))
-            Text("AK Spareparts", fontSize = 28.sp, fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary)
-            Text("Auto Parts Management", color = MaterialTheme.colorScheme.onSurfaceVariant)
+
             Spacer(Modifier.height(32.dp))
 
             OutlinedTextField(
@@ -92,7 +89,7 @@ fun LoginScreen(authViewModel: AuthViewModel = viewModel()) {
                 enabled = username.isNotBlank() && password.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(50.dp)
             ) {
-                Text("LOGIN", fontWeight = FontWeight.Bold)
+                Text("LOGIN", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             }
         }
     }
