@@ -20,9 +20,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private val _needsApiKey = MutableStateFlow(session.isLoggedIn && !session.hasApiKey)
-    val needsApiKey: StateFlow<Boolean> = _needsApiKey.asStateFlow()
-
     val fullName: String? get() = session.fullName
 
     fun login(username: String, password: String) {
@@ -32,19 +29,11 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             if (user != null) {
                 session.saveSession(user.username, user.fullName)
                 _loggedIn.value = true
-                _needsApiKey.value = !session.hasApiKey
             } else {
                 _error.value = "Invalid username or password"
             }
         }
     }
-
-    fun saveApiKey(key: String) {
-        session.apiKey = key.trim()
-        _needsApiKey.value = false
-    }
-
-    fun dismissApiKeyPrompt() { _needsApiKey.value = false }
 
     fun logout() {
         session.logout()

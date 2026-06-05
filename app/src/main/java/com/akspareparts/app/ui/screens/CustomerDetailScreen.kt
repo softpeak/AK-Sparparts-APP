@@ -1,9 +1,6 @@
 package com.akspareparts.app.ui.screens
 
 import android.content.Intent
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,9 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import com.akspareparts.app.data.BillItem
 import com.akspareparts.app.data.CustomerPart
-import com.akspareparts.app.data.ExtractedPart
 import com.akspareparts.app.ui.viewmodel.CustomerDetailViewModel
 import kotlinx.coroutines.launch
 import java.io.File
@@ -114,33 +109,14 @@ private fun SoldPartsTab(vm: CustomerDetailViewModel) {
     }
 }
 
-/* ---------- Tab 2: Add New Parts (+ image extraction) ---------- */
+/* ---------- Tab 2: Add New Parts (manual + autosuggest) ---------- */
 @Composable
 private fun AddPartsTab(vm: CustomerDetailViewModel) {
-    val context = LocalContext.current
     var partNumber by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     val suggestions by vm.suggestions.collectAsState()
-    val extracting by vm.extracting.collectAsState()
-    val extracted by vm.extracted.collectAsState()
-    val extractError by vm.extractError.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
-    // capture uri holder for camera
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri -> uri?.let { vm.extractFromImage(it) } }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicture()
-    ) { success -> if (success) cameraUri?.let { vm.extractFromImage(it) } }
-
-    LaunchedEffect(extractError) {
-        extractError?.let { scope.launch { snackbar.showSnackbar(it) }; vm.clearExtractError() }
-    }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
@@ -194,104 +170,8 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) { Text("SAVE", fontWeight = FontWeight.Bold) }
-
-            Spacer(Modifier.height(20.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(12.dp))
-            Text("Extract from photo", fontWeight = FontWeight.Bold)
-            Text("Upload a parts list or invoice photo and Claude will read the part numbers and prices.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
-                    onClick = { galleryLauncher.launch("image/*") },
-                    enabled = !extracting, modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Filled.PhotoLibrary, contentDescription = null)
-                    Spacer(Modifier.width(8.dp)); Text("Gallery")
-                }
-                OutlinedButton(
-                    onClick = {
-                        val uri = createImageUri(context)
-                        cameraUri = uri
-                        cameraLauncher.launch(uri)
-                    },
-                    enabled = !extracting, modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Filled.PhotoCamera, contentDescription = null)
-                    Spacer(Modifier.width(8.dp)); Text("Camera")
-                }
-            }
-            if (extracting) {
-                Spacer(Modifier.height(16.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Text("Reading image with Claude…")
-                }
-            }
         }
     }
-
-    extracted?.let { parts ->
-        ExtractedReviewDialog(
-            parts = parts,
-            onConfirm = { confirmed ->
-                vm.confirmExtracted(confirmed) {
-                    scope.launch { snackbar.showSnackbar("${confirmed.size} parts saved") }
-                }
-            },
-            onDismiss = { vm.dismissExtracted() }
-        )
-    }
-}
-
-@Composable
-private fun ExtractedReviewDialog(
-    parts: List<ExtractedPart>,
-    onConfirm: (List<ExtractedPart>) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val editable = remember {
-        mutableStateListOf(*parts.map { it.partNumber to it.price.toString() }.toTypedArray())
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Review extracted parts (${parts.size})") },
-        text = {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                itemsIndexed(editable) { i, pair ->
-                    Row(verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = pair.first,
-                            onValueChange = { editable[i] = it to pair.second },
-                            label = { Text("Part") }, singleLine = true,
-                            modifier = Modifier.weight(1.4f)
-                        )
-                        OutlinedTextField(
-                            value = pair.second,
-                            onValueChange = { editable[i] = pair.first to it.filter { c -> c.isDigit() || c == '.' } },
-                            label = { Text("Price") }, singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val result = editable.mapNotNull { (pn, pr) ->
-                    val price = pr.toDoubleOrNull()
-                    if (pn.isNotBlank() && price != null) ExtractedPart(pn.trim(), price) else null
-                }
-                onConfirm(result)
-            }) { Text("Save All") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
 }
 
 /* ---------- Tab 3: Edit Parts ---------- */
@@ -551,12 +431,6 @@ private fun AllBillsTab(vm: CustomerDetailViewModel) {
 }
 
 /* ---------- helpers ---------- */
-private fun createImageUri(context: android.content.Context): Uri {
-    val dir = File(context.cacheDir, "captures").apply { mkdirs() }
-    val file = File(dir, "capture_${System.currentTimeMillis()}.jpg")
-    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-}
-
 private fun sharePdf(context: android.content.Context, file: File) {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     val intent = Intent(Intent.ACTION_SEND).apply {

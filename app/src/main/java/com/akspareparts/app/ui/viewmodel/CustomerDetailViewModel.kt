@@ -1,7 +1,6 @@
 package com.akspareparts.app.ui.viewmodel
 
 import android.app.Application
-import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -12,8 +11,7 @@ import com.akspareparts.app.data.BillDraftItem
 import com.akspareparts.app.data.BillItem
 import com.akspareparts.app.data.Customer
 import com.akspareparts.app.data.CustomerPart
-import com.akspareparts.app.data.ExtractedPart
-import com.akspareparts.app.network.ClaudeVisionApi
+import com.akspareparts.app.data.Part
 import com.akspareparts.app.pdf.BillPdfGenerator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +33,6 @@ class CustomerDetailViewModel(
 
     private val application = app as AKApplication
     private val repo = application.repository
-    private val session = application.session
 
     val customer: StateFlow<Customer?> =
         repo.customer(customerId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -52,9 +49,9 @@ class CustomerDetailViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // ---- Tab 2: add part (manual) + autosuggest ----
-    private val _suggestions = MutableStateFlow<List<com.akspareparts.app.data.Part>>(emptyList())
-    val suggestions: StateFlow<List<com.akspareparts.app.data.Part>> = _suggestions
+    // ---- Tab 2: add part (manual) + autosuggest from global catalog ----
+    private val _suggestions = MutableStateFlow<List<Part>>(emptyList())
+    val suggestions: StateFlow<List<Part>> = _suggestions
 
     fun fetchSuggestions(prefix: String) {
         viewModelScope.launch { _suggestions.value = repo.suggestParts(prefix.trim()) }
@@ -74,46 +71,6 @@ class CustomerDetailViewModel(
             onDone()
         }
     }
-
-    // ---- Tab 2: image extraction via Claude vision ----
-    private val _extracting = MutableStateFlow(false)
-    val extracting: StateFlow<Boolean> = _extracting
-
-    private val _extracted = MutableStateFlow<List<ExtractedPart>?>(null)
-    val extracted: StateFlow<List<ExtractedPart>?> = _extracted
-
-    private val _extractError = MutableStateFlow<String?>(null)
-    val extractError: StateFlow<String?> = _extractError
-
-    val hasApiKey: Boolean get() = session.hasApiKey
-
-    fun extractFromImage(uri: Uri) {
-        val key = session.apiKey
-        if (key.isNullOrBlank()) {
-            _extractError.value = "No API key saved. Add it from the menu first."
-            return
-        }
-        _extracting.value = true
-        _extractError.value = null
-        viewModelScope.launch {
-            when (val r = ClaudeVisionApi.extractParts(application, uri, key)) {
-                is ClaudeVisionApi.Result.Success -> _extracted.value = r.parts
-                is ClaudeVisionApi.Result.Error -> _extractError.value = r.message
-            }
-            _extracting.value = false
-        }
-    }
-
-    fun confirmExtracted(parts: List<ExtractedPart>, onDone: () -> Unit) {
-        viewModelScope.launch {
-            repo.addCustomerParts(customerId, parts.map { it.partNumber to it.price })
-            _extracted.value = null
-            onDone()
-        }
-    }
-
-    fun dismissExtracted() { _extracted.value = null }
-    fun clearExtractError() { _extractError.value = null }
 
     // ---- Tab 4: bill generation ----
     private val _draft = MutableStateFlow<List<BillDraftItem>>(emptyList())

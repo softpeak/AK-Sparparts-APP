@@ -39,34 +39,18 @@ GitHub Desktop (or `git`) and push the whole folder instead — that preserves i
 
 Session is saved with SharedPreferences — you stay logged in until you tap **Logout**.
 
-## Anthropic API key (photo extraction)
+## Fully offline
 
-After the first login a one-time dialog asks for your Anthropic API key.
-It is stored locally in SharedPreferences and reused for all image extractions.
-The "Add Parts" tab can read a photo of a parts list/invoice via
-`claude-sonnet-4-20250514` vision and returns parts for review before saving.
+The app runs entirely on the device — no internet, no API key, no accounts to set up.
+All data lives in a local Room (SQLite) database.
 
 ## Features
 
 - **Customers**: list (name + city), add new, open detail.
-- **Customer detail** (5 tabs): Already Sold Parts · Add Parts (manual + photo
-  extraction + autosuggest) · Edit Parts (searchable, per-row save) ·
+- **Customer detail** (5 tabs): Already Sold Parts · Add Parts (manual entry with
+  autosuggest from the catalog) · Edit Parts (searchable, per-row save) ·
   Generate Bill (checkbox + qty + live totals, PDF preview, share, explicit Save) ·
   All Bills (history, tap to re-share PDF).
 - **All Parts List**: global catalog, searchable.
 - **New Part**: add to global catalog (auto-suggests when adding to customers).
-- Bills export as PDF (native `PdfDocument`) and share via WhatsApp/email/etc.
-- Global catalog pre-seeded with 28 parts on first launch.
-
-## Project layout
-
-```
-app/src/main/java/com/akspareparts/app/
-├── AKApplication.kt          service locator (Repository + SessionManager)
-├── MainActivity.kt           nav drawer + NavHost
-├── data/                     Room entities, DAOs, AppDatabase (+ seed), Repository, models
-├── prefs/SessionManager.kt   SharedPreferences (session + API key)
-├── network/ClaudeVisionApi.kt  Anthropic vision call
-├── pdf/BillPdfGenerator.kt   styled PDF bill
-└── ui/                       theme, screens, viewmodels, components
-```
+- Bills export as P
