@@ -26,7 +26,8 @@ object BillPdfGenerator {
         val city: String,
         val date: String,
         val items: List<BillItem>,
-        val grandTotal: Double
+        val grandTotal: Double,
+        val deliveryCharge: Double = 0.0
     )
 
     /** Writes the PDF into <files>/bills and returns the File. */
@@ -87,15 +88,26 @@ object BillPdfGenerator {
             canvas.drawText(fmt(item.lineTotal), colTotal, y, label)
             canvas.drawLine(MARGIN, y + 6f, PAGE_W - MARGIN, y + 6f, line)
             y += 24f
-            if (y > PAGE_H - 80f) break // single-page guard
+            if (y > PAGE_H - 120f) break // single-page guard
         }
 
-        // Grand total
-        y += 10f
+        // Subtotal + delivery (only when a delivery charge is present)
+        y += 8f
+        if (data.deliveryCharge > 0.0) {
+            val subtotal = data.items.sumOf { it.lineTotal }
+            canvas.drawText("Subtotal", colUnit, y, labelBold)
+            canvas.drawText("AED ${fmt(subtotal)}", colTotal, y, label)
+            y += 20f
+            canvas.drawText("Delivery", colUnit, y, labelBold)
+            canvas.drawText("AED ${fmt(data.deliveryCharge)}", colTotal, y, label)
+            y += 18f
+        }
+
+        // Grand total band
+        y += 8f
         canvas.drawRect(colUnit - 10f, y - 16f, PAGE_W - MARGIN, y + 8f, headerBg)
         canvas.drawText("Grand Total", colUnit, y, headerText)
-        canvas.drawText("AED ${fmt(data.grandTotal)}", colTotal, y,
-            Paint(headerText))
+        canvas.drawText("AED ${fmt(data.grandTotal)}", colTotal, y, Paint(headerText))
 
         // Footer
         canvas.drawText("Thank you for your business — AK Spareparts",

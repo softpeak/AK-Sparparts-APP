@@ -320,10 +320,13 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showPreview by remember { mutableStateOf(false) }
+    var deliveryText by remember { mutableStateOf("") }
 
     LaunchedEffect(customerParts) { vm.loadDraft() }
 
-    val grand = draft.filter { it.selected }.sumOf { it.lineTotal }
+    val delivery = deliveryText.toDoubleOrNull() ?: 0.0
+    val partsTotal = draft.filter { it.selected }.sumOf { it.lineTotal }
+    val grand = partsTotal + delivery
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
@@ -369,6 +372,28 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
             }
             Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
                 Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                    OutlinedTextField(
+                        value = deliveryText,
+                        onValueChange = { deliveryText = it.filter { c -> c.isDigit() || c == '.' } },
+                        label = { Text("Delivery charges (AED) - optional") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    if (delivery > 0.0) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Subtotal", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("AED ${fmtPrice(partsTotal)}",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Delivery", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("AED ${fmtPrice(delivery)}",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                    }
                     Row(Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Grand Total", fontWeight = FontWeight.Bold,
@@ -390,7 +415,7 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
 
     if (showPreview) {
         BillPreviewDialog(
-            vm = vm, grand = grand,
+            vm = vm, partsTotal = partsTotal, delivery = delivery, grand = grand,
             onDismiss = { showPreview = false },
             onShared = { file -> sharePdf(context, file) },
             onMessage = { msg -> scope.launch { snackbar.showSnackbar(msg) } }
@@ -401,6 +426,8 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
 @Composable
 private fun BillPreviewDialog(
     vm: CustomerDetailViewModel,
+    partsTotal: Double,
+    delivery: Double,
     grand: Double,
     onDismiss: () -> Unit,
     onShared: (File) -> Unit,
@@ -412,7 +439,7 @@ private fun BillPreviewDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("AK Spareparts — Bill Preview") },
+        title = { Text("AK Spareparts - Bill Preview") },
         text = {
             Column {
                 Text(customer?.name ?: "", fontWeight = FontWeight.Bold)
@@ -424,7 +451,7 @@ private fun BillPreviewDialog(
                     Text("Total", fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.8f))
                 }
                 HorizontalDivider()
-                LazyColumn(Modifier.heightIn(max = 220.dp)) {
+                LazyColumn(Modifier.heightIn(max = 200.dp)) {
                     items(selected) { it2 ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                             Text(it2.partNumber, modifier = Modifier.weight(1.4f))
@@ -434,7 +461,17 @@ private fun BillPreviewDialog(
                     }
                 }
                 HorizontalDivider()
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp),
+                if (delivery > 0.0) {
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Subtotal"); Text("AED ${fmtPrice(partsTotal)}")
+                    }
+                    Row(Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Delivery"); Text("AED ${fmtPrice(delivery)}")
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Grand Total", fontWeight = FontWeight.Bold)
                     Text("AED ${fmtPrice(grand)}", fontWeight = FontWeight.Bold,
@@ -445,16 +482,14 @@ private fun BillPreviewDialog(
         confirmButton = {
             Row {
                 TextButton(onClick = {
-                    vm.generatePdf(
+                    vm.generatePdf(delivery,
                         onReady = { file -> onShared(file) },
-                        onError = { onMessage(it) }
-                    )
+                        onError = { onMessage(it) })
                 }) { Text("Share PDF") }
                 TextButton(onClick = {
-                    vm.saveBill(
+                    vm.saveBill(delivery,
                         onSaved = { onMessage("Bill saved to history"); onDismiss() },
-                        onError = { onMessage(it) }
-                    )
+                        onError = { onMessage(it) })
                 }) { Text("Save Bill") }
             }
         },

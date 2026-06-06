@@ -54,15 +54,10 @@ class CustomerDetailViewModel(
     val catalogSearch: StateFlow<String> = _catalogSearch
     fun setCatalogSearch(q: String) { _catalogSearch.value = q }
 
-    /** Every part in the global catalog (optionally filtered by search). */
     val catalog: StateFlow<List<Part>> = _catalogSearch
         .flatMapLatest { q -> if (q.isBlank()) repo.allParts() else repo.searchParts(q) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /**
-     * Add a part to THIS customer (also mirrors into the global catalog).
-     * onResult(true)  = added, onResult(false) = customer already had this part.
-     */
     fun addPart(partNumber: String, price: Double, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val added = repo.addCustomerPart(customerId, partNumber.trim(), price)
@@ -106,15 +101,13 @@ class CustomerDetailViewModel(
         }
     }
 
-    val grandTotal: Double
-        get() = _draft.value.filter { it.selected }.sumOf { it.lineTotal }
-
     private val _lastPdf = MutableStateFlow<File?>(null)
     val lastPdf: StateFlow<File?> = _lastPdf
 
     private val dateFmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
-    fun generatePdf(onReady: (File) -> Unit, onError: (String) -> Unit) {
+    /** Generates the PDF preview (delivery added if > 0). Does NOT save to history. */
+    fun generatePdf(delivery: Double, onReady: (File) -> Unit, onError: (String) -> Unit) {
         val cust = customer.value ?: run { onError("Customer not loaded"); return }
         val selected = _draft.value.filter { it.selected }
         if (selected.isEmpty()) { onError("Select at least one part"); return }
@@ -124,10 +117,10 @@ class CustomerDetailViewModel(
                     BillItem(billId = 0, partNumber = it.partNumber, qty = it.qty,
                         unitPrice = it.unitPrice, lineTotal = it.lineTotal)
                 }
-                val date = dateFmt.format(Date())
+                val total = items.sumOf { it.lineTotal } + delivery
                 val data = BillPdfGenerator.BillData(
-                    customerName = cust.name, city = cust.city, date = date,
-                    items = items, grandTotal = items.sumOf { it.lineTotal }
+                    customerName = cust.name, city = cust.city, date = dateFmt.format(Date()),
+                    items = items, grandTotal = total, deliveryCharge = delivery
                 )
                 val file = BillPdfGenerator.generate(
                     application, data, "bill_${customerId}_${System.currentTimeMillis()}.pdf"
@@ -140,7 +133,8 @@ class CustomerDetailViewModel(
         }
     }
 
-    fun saveBill(onSaved: () -> Unit, onError: (String) -> Unit) {
+    /** Persists the bill (delivery folded into the total + PDF). */
+    fun saveBill(delivery: Double, onSaved: () -> Unit, onError: (String) -> Unit) {
         val cust = customer.value ?: run { onError("Customer not loaded"); return }
         val selected = _draft.value.filter { it.selected }
         if (selected.isEmpty()) { onError("Select at least one part"); return }
@@ -151,10 +145,10 @@ class CustomerDetailViewModel(
                     BillItem(billId = 0, partNumber = it.partNumber, qty = it.qty,
                         unitPrice = it.unitPrice, lineTotal = it.lineTotal)
                 }
-                val total = items.sumOf { it.lineTotal }
-                val pdf = _lastPdf.value ?: BillPdfGenerator.generate(
+                val total = items.sumOf { it.lineTotal } + delivery
+                val pdf = BillPdfGenerator.generate(
                     application,
-                    BillPdfGenerator.BillData(cust.name, cust.city, date, items, total),
+                    BillPdfGenerator.BillData(cust.name, cust.city, date, items, total, delivery),
                     "bill_${customerId}_${System.currentTimeMillis()}.pdf"
                 )
                 val bill = Bill(customerId = customerId, date = date,
