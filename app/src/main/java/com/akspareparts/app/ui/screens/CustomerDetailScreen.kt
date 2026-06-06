@@ -165,7 +165,28 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
             HorizontalDivider()
             Spacer(Modifier.height(12.dp))
 
-            Text("Or pick from the list (${catalog.size})", fontWeight = FontWeight.Bold)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Or pick from the list (${catalog.size})", fontWeight = FontWeight.Bold)
+                TextButton(
+                    onClick = {
+                        if (catalog.isEmpty()) {
+                            toast("Nothing to add")
+                        } else {
+                            vm.addAll(catalog) { added, skipped ->
+                                toast("Added $added new" + if (skipped > 0) ", skipped $skipped already added" else "")
+                            }
+                        }
+                    }
+                ) {
+                    Icon(Icons.Filled.DoneAll, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Add all")
+                }
+            }
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = catalogSearch, onValueChange = vm::setCatalogSearch,

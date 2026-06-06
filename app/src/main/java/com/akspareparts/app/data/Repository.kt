@@ -50,6 +50,27 @@ class Repository(
         return true
     }
 
+    /**
+     * Adds many parts to the customer at once, skipping any already present.
+     * Returns Pair(addedCount, skippedCount).
+     */
+    suspend fun addCustomerPartsBulk(customerId: Int, parts: List<Pair<String, Double>>): Pair<Int, Int> {
+        var added = 0
+        var skipped = 0
+        for ((rawPn, price) in parts) {
+            val pn = rawPn.trim()
+            if (pn.isEmpty()) continue
+            if (customerPartDao.countForCustomer(customerId, pn) > 0) {
+                skipped++
+                continue
+            }
+            customerPartDao.insert(CustomerPart(customerId = customerId, partNumber = pn, price = price))
+            partDao.insert(Part(partNumber = pn, price = price))
+            added++
+        }
+        return added to skipped
+    }
+
     suspend fun updateCustomerPart(part: CustomerPart) = customerPartDao.update(part)
     suspend fun deleteCustomerPart(part: CustomerPart) = customerPartDao.delete(part)
 

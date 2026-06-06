@@ -65,6 +65,15 @@ class CustomerDetailViewModel(
         }
     }
 
+    /** Adds every given part to the customer, skipping ones already present. */
+    fun addAll(parts: List<Part>, onResult: (Int, Int) -> Unit) {
+        viewModelScope.launch {
+            val (added, skipped) = repo.addCustomerPartsBulk(
+                customerId, parts.map { it.partNumber to it.price })
+            onResult(added, skipped)
+        }
+    }
+
     fun updatePart(part: CustomerPart, onDone: () -> Unit) {
         viewModelScope.launch {
             repo.updateCustomerPart(part)
