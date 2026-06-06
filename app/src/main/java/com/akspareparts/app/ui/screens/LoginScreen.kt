@@ -9,10 +9,12 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -31,7 +33,7 @@ fun LoginScreen(authViewModel: AuthViewModel = viewModel()) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier.fillMaxSize().padding(28.dp),
-            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             // Brand logo on a dark panel (the logo's white/gold reads best on dark)
@@ -44,8 +46,11 @@ fun LoginScreen(authViewModel: AuthViewModel = viewModel()) {
                 Image(
                     painter = painterResource(R.drawable.ak_logo),
                     contentDescription = "AK Spare Parts",
-                    contentScale = ContentScale.FitWidth,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp)
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 14.dp)
+                        .aspectRatio(2f)
                 )
             }
 
@@ -89,7 +94,7 @@ fun LoginScreen(authViewModel: AuthViewModel = viewModel()) {
                 enabled = username.isNotBlank() && password.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(50.dp)
             ) {
-                Text("LOGIN", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                Text("LOGIN", fontWeight = FontWeight.Bold)
             }
         }
     }
