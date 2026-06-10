@@ -1,24 +1,32 @@
 package com.akspareparts.app.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.akspareparts.app.data.CustomerPart
+import com.akspareparts.app.ui.components.EmptyState
+import com.akspareparts.app.ui.components.PartNumberText
+import com.akspareparts.app.ui.components.PriceChip
+import com.akspareparts.app.ui.components.SectionHeader
 import com.akspareparts.app.ui.viewmodel.CustomerDetailViewModel
 import kotlinx.coroutines.launch
 import java.io.File
@@ -40,7 +48,8 @@ fun CustomerDetailScreen(
                 title = {
                     Column {
                         Text(customer?.name ?: "Customer",
-                            style = MaterialTheme.typography.titleMedium)
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold)
                         customer?.let {
                             Text(it.city, style = MaterialTheme.typography.bodySmall)
                         }
@@ -48,7 +57,7 @@ fun CustomerDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -60,9 +69,21 @@ fun CustomerDetailScreen(
         }
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            ScrollableTabRow(selectedTabIndex = tab, edgePadding = 0.dp) {
+            ScrollableTabRow(
+                selectedTabIndex = tab,
+                edgePadding = 0.dp,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
                 TABS.forEachIndexed { i, title ->
-                    Tab(selected = tab == i, onClick = { tab = i }, text = { Text(title) })
+                    Tab(
+                        selected = tab == i,
+                        onClick = { tab = i },
+                        text = {
+                            Text(title,
+                                fontWeight = if (tab == i) FontWeight.Bold else FontWeight.Medium)
+                        }
+                    )
                 }
             }
             when (tab) {
@@ -81,28 +102,33 @@ fun CustomerDetailScreen(
 private fun SoldPartsTab(vm: CustomerDetailViewModel) {
     val parts by vm.customerParts.collectAsState()
     if (parts.isEmpty()) {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-            Text("No parts sold to this customer yet.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        EmptyState(
+            title = "No parts yet",
+            message = "No parts sold to this customer yet. Use the Add Parts tab.",
+            icon = Icons.Filled.Inventory2
+        )
         return
     }
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Part Number", fontWeight = FontWeight.Bold)
-                Text("Price (AED)", fontWeight = FontWeight.Bold)
-            }
+            SectionHeader("${parts.size} parts sold")
         }
         items(parts, key = { it.id }) { p ->
-            Card(Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(p.partNumber)
-                    Text(fmtPrice(p.price), color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold)
+            Card(
+                Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PartNumberText(p.partNumber, modifier = Modifier.weight(1f))
+                    PriceChip(fmtPrice(p.price))
                 }
             }
         }
@@ -124,13 +150,14 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
 
-            Text("Add a new part", fontWeight = FontWeight.Bold)
+            SectionHeader("Add a new part")
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = partNumber, onValueChange = { partNumber = it },
                     label = { Text("Part Number") }, singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.weight(1.4f)
                 )
                 OutlinedTextField(
@@ -138,10 +165,11 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
                     onValueChange = { price = it.filter { c -> c.isDigit() || c == '.' } },
                     label = { Text("Price") }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.weight(1f)
                 )
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Button(
                 onClick = {
                     val p = price.toDoubleOrNull()
@@ -158,7 +186,8 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(48.dp)
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(50.dp)
             ) { Text("SAVE NEW PART", fontWeight = FontWeight.Bold) }
 
             Spacer(Modifier.height(16.dp))
@@ -170,7 +199,7 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Or pick from the list (${catalog.size})", fontWeight = FontWeight.Bold)
+                SectionHeader("Or pick from the list (${catalog.size})")
                 TextButton(
                     onClick = {
                         if (catalog.isEmpty()) {
@@ -190,8 +219,12 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = catalogSearch, onValueChange = vm::setCatalogSearch,
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = {
+                    Icon(Icons.Filled.Search, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary)
+                },
                 placeholder = { Text("Search part number") }, singleLine = true,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(8.dp))
@@ -205,9 +238,12 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(catalog, key = { it.id }) { part ->
-                        Card(Modifier.fillMaxWidth()) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
                             Row(
-                                Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp,
+                                Modifier.fillMaxWidth().padding(start = 6.dp, end = 12.dp,
                                     top = 4.dp, bottom = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -224,11 +260,8 @@ private fun AddPartsTab(vm: CustomerDetailViewModel) {
                                     Icon(Icons.Filled.Add, contentDescription = "Add to customer")
                                 }
                                 Spacer(Modifier.width(8.dp))
-                                Text(part.partNumber, fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f))
-                                Text("AED ${fmtPrice(part.price)}",
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold)
+                                PartNumberText(part.partNumber, modifier = Modifier.weight(1f))
+                                PriceChip(fmtPrice(part.price), emphasized = false)
                             }
                         }
                     }
@@ -250,15 +283,21 @@ private fun EditPartsTab(vm: CustomerDetailViewModel) {
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
             OutlinedTextField(
                 value = search, onValueChange = vm::setPartSearch,
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = {
+                    Icon(Icons.Filled.Search, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary)
+                },
                 placeholder = { Text("Search part number") }, singleLine = true,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             if (parts.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No parts to edit.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                EmptyState(
+                    title = "Nothing to edit",
+                    message = "No parts match your search.",
+                    icon = Icons.Filled.EditNote
+                )
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(parts, key = { it.id }) { part ->
@@ -292,16 +331,22 @@ private fun EditableRow(
     var pr by remember(part.id) { mutableStateOf(fmtPrice(part.price)) }
     var confirmDelete by remember { mutableStateOf(false) }
 
-    Card(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(8.dp),
+    Card(
+        Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(Modifier.fillMaxWidth().padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             OutlinedTextField(value = pn, onValueChange = { pn = it },
-                label = { Text("Part") }, singleLine = true, modifier = Modifier.weight(1.4f))
+                label = { Text("Part") }, singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1.4f))
             OutlinedTextField(value = pr,
                 onValueChange = { pr = it.filter { c -> c.isDigit() || c == '.' } },
                 label = { Text("Price") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.weight(1f))
             IconButton(onClick = {
                 val price = pr.toDoubleOrNull() ?: part.price
@@ -320,10 +365,21 @@ private fun EditableRow(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
+            shape = RoundedCornerShape(24.dp),
+            icon = {
+                Icon(Icons.Filled.Delete, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error)
+            },
             title = { Text("Delete part?") },
             text = { Text("Remove ${part.partNumber} from this customer?") },
             confirmButton = {
-                TextButton(onClick = { confirmDelete = false; onDelete() }) { Text("Delete") }
+                Button(
+                    onClick = { confirmDelete = false; onDelete() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Delete") }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
@@ -342,56 +398,123 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
     val scope = rememberCoroutineScope()
     var showPreview by remember { mutableStateOf(false) }
     var deliveryText by remember { mutableStateOf("") }
+    var billSearch by remember { mutableStateOf("") }
 
     LaunchedEffect(customerParts) { vm.loadDraft() }
 
     val delivery = deliveryText.toDoubleOrNull() ?: 0.0
+    val selectedCount = draft.count { it.selected }
     val partsTotal = draft.filter { it.selected }.sumOf { it.lineTotal }
     val grand = partsTotal + delivery
+
+    // Filtered view of the draft; each entry keeps its ORIGINAL index so
+    // selection/qty updates always hit the right item.
+    val visible = draft.withIndex().filter {
+        billSearch.isBlank() || it.value.partNumber.contains(billSearch, ignoreCase = true)
+    }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             if (draft.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Add parts to this customer first.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                EmptyState(
+                    title = "No parts available",
+                    message = "Add parts to this customer first.",
+                    icon = Icons.Filled.ReceiptLong
+                )
                 return@Column
             }
-            LazyColumn(Modifier.weight(1f).padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                itemsIndexed(draft) { i, item ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Row(Modifier.fillMaxWidth().padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = item.selected,
-                                onCheckedChange = { vm.toggleSelected(i) })
-                            Column(Modifier.weight(1f)) {
-                                Text(item.partNumber, fontWeight = FontWeight.Medium)
-                                Text("AED ${fmtPrice(item.unitPrice)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            // Search box for the bill part list
+            Column(Modifier.padding(horizontal = 12.dp)) {
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = billSearch,
+                    onValueChange = { billSearch = it },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Search, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary)
+                    },
+                    trailingIcon = {
+                        if (billSearch.isNotEmpty()) {
+                            IconButton(onClick = { billSearch = "" }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear")
                             }
-                            if (item.selected) {
-                                OutlinedTextField(
-                                    value = item.qty.toString(),
-                                    onValueChange = {
-                                        vm.setQty(i, it.filter { c -> c.isDigit() }.toIntOrNull() ?: 1)
-                                    },
-                                    label = { Text("Qty") }, singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    modifier = Modifier.width(80.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("AED ${fmtPrice(item.lineTotal)}",
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary)
+                        }
+                    },
+                    placeholder = { Text("Search part number") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (selectedCount > 0) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "$selectedCount part${if (selectedCount > 1) "s" else ""} selected",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            if (visible.isEmpty()) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("No part matches \"$billSearch\".",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(Modifier.weight(1f).padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(visible, key = { it.value.partNumber }) { entry ->
+                        val i = entry.index
+                        val item = entry.value
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (item.selected)
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                                else MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Row(Modifier.fillMaxWidth().padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = item.selected,
+                                    onCheckedChange = { vm.toggleSelected(i) })
+                                Column(Modifier.weight(1f)) {
+                                    PartNumberText(item.partNumber)
+                                    Text("AED ${fmtPrice(item.unitPrice)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (item.selected) {
+                                    OutlinedTextField(
+                                        value = item.qty.toString(),
+                                        onValueChange = {
+                                            vm.setQty(i, it.filter { c -> c.isDigit() }.toIntOrNull() ?: 1)
+                                        },
+                                        label = { Text("Qty") }, singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.width(80.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("AED ${fmtPrice(item.lineTotal)}",
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary)
+                                }
                             }
                         }
                     }
                 }
             }
-            Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
+
+            Surface(
+                tonalElevation = 3.dp,
+                shadowElevation = 12.dp,
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp)) {
                     OutlinedTextField(
                         value = deliveryText,
@@ -399,6 +522,7 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
                         label = { Text("Delivery charges (AED) - optional") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(Modifier.height(10.dp))
@@ -424,8 +548,12 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
                             color = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { showPreview = true },
-                        modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                    Button(
+                        onClick = { showPreview = true },
+                        enabled = selectedCount > 0,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(50.dp)
+                    ) {
                         Icon(Icons.Filled.Receipt, contentDescription = null)
                         Spacer(Modifier.width(8.dp)); Text("PREVIEW BILL", fontWeight = FontWeight.Bold)
                     }
@@ -460,7 +588,12 @@ private fun BillPreviewDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("AK Spareparts - Bill Preview") },
+        shape = RoundedCornerShape(24.dp),
+        icon = {
+            Icon(Icons.Filled.ReceiptLong, contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary)
+        },
+        title = { Text("AK Spareparts - Bill Preview", fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(customer?.name ?: "", fontWeight = FontWeight.Bold)
@@ -507,11 +640,14 @@ private fun BillPreviewDialog(
                         onReady = { file -> onShared(file) },
                         onError = { onMessage(it) })
                 }) { Text("Share PDF") }
-                TextButton(onClick = {
-                    vm.saveBill(delivery,
-                        onSaved = { onMessage("Bill saved to history"); onDismiss() },
-                        onError = { onMessage(it) })
-                }) { Text("Save Bill") }
+                Button(
+                    onClick = {
+                        vm.saveBill(delivery,
+                            onSaved = { onMessage("Bill saved to history"); onDismiss() },
+                            onError = { onMessage(it) })
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Save Bill") }
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
@@ -524,36 +660,50 @@ private fun AllBillsTab(vm: CustomerDetailViewModel) {
     val context = LocalContext.current
     val bills by vm.bills.collectAsState()
     if (bills.isEmpty()) {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-            Text("No saved bills yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        EmptyState(
+            title = "No saved bills",
+            message = "Bills you save from the Generate Bill tab will appear here.",
+            icon = Icons.Filled.ReceiptLong
+        )
         return
     }
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         items(bills, key = { it.id }) { bill ->
-            Card(Modifier.fillMaxWidth().clickable {
-                bill.pdfPath?.let { path ->
-                    val f = File(path)
-                    if (f.exists()) sharePdf(context, f)
-                }
-            }) {
-                Row(Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+            Card(
+                Modifier.fillMaxWidth().clickable {
+                    bill.pdfPath?.let { path ->
+                        val f = File(path)
+                        if (f.exists()) sharePdf(context, f)
+                    }
+                },
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Column {
+                    Box(
+                        Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.ReceiptLong, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
                         Text("Bill #${bill.id}", fontWeight = FontWeight.Bold)
                         Text(bill.date, style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("AED ${fmtPrice(bill.totalAmount)}",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Filled.Share, contentDescription = "Share",
-                            tint = MaterialTheme.colorScheme.primary)
-                    }
+                    PriceChip(fmtPrice(bill.totalAmount))
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Filled.Share, contentDescription = "Share",
+                        tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }

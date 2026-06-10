@@ -4,7 +4,10 @@ import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -13,11 +16,17 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -30,6 +39,8 @@ import com.akspareparts.app.ui.screens.CustomersScreen
 import com.akspareparts.app.ui.screens.LoginScreen
 import com.akspareparts.app.ui.screens.NewPartScreen
 import com.akspareparts.app.ui.theme.AKSparepartsTheme
+import com.akspareparts.app.ui.theme.DeepBlue
+import com.akspareparts.app.ui.theme.DeepBlueDarker
 import com.akspareparts.app.ui.viewmodel.AuthViewModel
 import com.akspareparts.app.ui.viewmodel.CustomerDetailViewModel
 import kotlinx.coroutines.launch
@@ -61,31 +72,82 @@ private fun MainShell(authVm: AuthViewModel) {
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    var currentRoute by remember { mutableStateOf("customers") }
     var currentTitle by remember { mutableStateOf("Customers") }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
-                Spacer(Modifier.height(24.dp))
-                Column(Modifier.padding(horizontal = 16.dp)) {
-                    Text("AK Spareparts", style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    authVm.fullName?.let {
-                        Text("Signed in as $it",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ModalDrawerSheet(
+                drawerContainerColor = MaterialTheme.colorScheme.surface
+            ) {
+                // ---- Drawer header ----
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(DeepBlueDarker, DeepBlue)
+                            )
+                        )
+                        .padding(20.dp)
+                ) {
+                    Column {
+                        Image(
+                            painter = painterResource(R.drawable.ak_logo),
+                            contentDescription = "AK Spareparts",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxWidth(0.7f)
+                                .aspectRatio(2.4f)
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    (authVm.fullName ?: "?").take(1).uppercase(),
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    authVm.fullName ?: "",
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    "Signed in",
+                                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
                     }
                 }
-                Spacer(Modifier.height(16.dp))
-                HorizontalDivider()
-                Spacer(Modifier.height(8.dp))
+
+                Spacer(Modifier.height(12.dp))
                 DRAWER_ITEMS.forEach { item ->
                     NavigationDrawerItem(
                         icon = { Icon(item.icon, contentDescription = null) },
-                        label = { Text(item.label) },
-                        selected = false,
+                        label = { Text(item.label, fontWeight = FontWeight.Medium) },
+                        selected = currentRoute == item.route,
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
                         onClick = {
+                            currentRoute = item.route
                             currentTitle = item.label
                             navController.navigate(item.route) {
                                 popUpTo("customers") { inclusive = false }
@@ -93,19 +155,26 @@ private fun MainShell(authVm: AuthViewModel) {
                             }
                             scope.launch { drawerState.close() }
                         },
-                        modifier = Modifier.padding(horizontal = 12.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                     )
                 }
-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Spacer(Modifier.weight(1f))
+                HorizontalDivider(Modifier.padding(horizontal = 24.dp))
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
-                    label = { Text("Logout") },
+                    icon = {
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error)
+                    },
+                    label = {
+                        Text("Logout", fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error)
+                    },
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
                         authVm.logout()
                     },
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                 )
             }
         }
@@ -113,7 +182,7 @@ private fun MainShell(authVm: AuthViewModel) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(currentTitle) },
+                    title = { Text(currentTitle, fontWeight = FontWeight.SemiBold) },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Filled.Menu, contentDescription = "Menu")

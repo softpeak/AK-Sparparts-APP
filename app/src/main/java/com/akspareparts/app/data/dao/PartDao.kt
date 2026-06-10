@@ -24,6 +24,12 @@ interface PartDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(parts: List<Part>)
 
+    @Query("UPDATE parts SET price = :price WHERE partNumber = :partNumber")
+    suspend fun updatePriceByPartNumber(partNumber: String, price: Double)
+
+    @Query("DELETE FROM parts WHERE partNumber = :partNumber")
+    suspend fun deleteByPartNumber(partNumber: String)
+
     @Query("SELECT COUNT(*) FROM parts")
     suspend fun count(): Int
 }

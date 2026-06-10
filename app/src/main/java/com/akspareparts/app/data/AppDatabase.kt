@@ -60,6 +60,14 @@ abstract class AppDatabase : RoomDatabase() {
 }
 
 object SeedData {
+    /** Bump this whenever PARTS prices change so existing installs re-sync prices. */
+    const val VERSION = 2
+
+    /** Part numbers removed from the catalog (cleaned up on version bump). */
+    val REMOVED: List<String> = listOf(
+        "0446535290" // duplicate of 04465-35290
+    )
+
     val PARTS: List<Part> = listOf(
         Part(partNumber = "90919-01217", price = 24.5),
         Part(partNumber = "04466-78020", price = 102.0),
@@ -83,7 +91,6 @@ object SeedData {
         Part(partNumber = "1630750012", price = 280.0),
         Part(partNumber = "4246060030", price = 380.0),
         Part(partNumber = "0446660080", price = 115.0),
-        Part(partNumber = "0446535290", price = 180.0),
         Part(partNumber = "0446526440", price = 185.0),
         Part(partNumber = "4356060010", price = 185.0),
         Part(partNumber = "9091901176", price = 4.3),
@@ -91,6 +98,9 @@ object SeedData {
         Part(partNumber = "04466-33200", price = 109.0),
         Part(partNumber = "04466-0K010", price = 115.0),
         Part(partNumber = "04466-60070", price = 138.0),
-        Part(partNumber = "90919-01210", price = 25.0)
+        Part(partNumber = "90919-01210", price = 26.0),
+        Part(partNumber = "224011HC1B", price = 25.5),
+        Part(partNumber = "044650K380", price = 158.0),
+        Part(partNumber = "0446552200", price = 123.0)
     )
 }

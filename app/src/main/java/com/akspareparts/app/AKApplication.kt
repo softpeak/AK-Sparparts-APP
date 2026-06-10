@@ -32,8 +32,20 @@ class AKApplication : Application() {
         // Top up the global catalog with any seed parts that aren't present yet.
         // insertAll() ignores conflicts (partNumber is unique), so this is safe to
         // run on every launch and adds newly-shipped parts to existing installs.
+        // When SeedData.VERSION is bumped, seed prices are re-applied once and
+        // removed part numbers are cleaned up.
+        val seedPrefs = getSharedPreferences("seed_prefs", MODE_PRIVATE)
         CoroutineScope(Dispatchers.IO).launch {
             db.partDao().insertAll(SeedData.PARTS)
+            if (seedPrefs.getInt("seed_version", 1) < SeedData.VERSION) {
+                SeedData.PARTS.forEach {
+                    db.partDao().updatePriceByPartNumber(it.partNumber, it.price)
+                }
+                SeedData.REMOVED.forEach {
+                    db.partDao().deleteByPartNumber(it)
+                }
+                seedPrefs.edit().putInt("seed_version", SeedData.VERSION).apply()
+            }
         }
     }
 }
