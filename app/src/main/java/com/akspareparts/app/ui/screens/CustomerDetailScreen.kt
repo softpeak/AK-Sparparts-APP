@@ -404,6 +404,7 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
 
     val delivery = deliveryText.toDoubleOrNull() ?: 0.0
     val selectedCount = draft.count { it.selected }
+    val missingQty = draft.any { it.selected && it.qty < 1 }
     val partsTotal = draft.filter { it.selected }.sumOf { it.lineTotal }
     val grand = partsTotal + delivery
 
@@ -489,12 +490,25 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 if (item.selected) {
+                                    var qtyText by remember(item.partNumber) {
+                                        mutableStateOf(if (item.qty == 0) "" else item.qty.toString())
+                                    }
+                                    // Keep the field in sync if the draft is reloaded elsewhere.
+                                    LaunchedEffect(item.qty) {
+                                        val current = qtyText.toIntOrNull() ?: 0
+                                        if (item.qty != current) {
+                                            qtyText = if (item.qty == 0) "" else item.qty.toString()
+                                        }
+                                    }
                                     OutlinedTextField(
-                                        value = item.qty.toString(),
-                                        onValueChange = {
-                                            vm.setQty(i, it.filter { c -> c.isDigit() }.toIntOrNull() ?: 1)
+                                        value = qtyText,
+                                        onValueChange = { input ->
+                                            val digits = input.filter { c -> c.isDigit() }.take(4)
+                                            qtyText = digits
+                                            vm.setQty(i, digits.toIntOrNull() ?: 0)
                                         },
                                         label = { Text("Qty") }, singleLine = true,
+                                        isError = qtyText.isBlank(),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier.width(80.dp)
@@ -548,9 +562,17 @@ private fun GenerateBillTab(vm: CustomerDetailViewModel) {
                             color = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.height(12.dp))
+                    if (missingQty) {
+                        Text(
+                            "Enter a quantity for every selected part",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
                     Button(
                         onClick = { showPreview = true },
-                        enabled = selectedCount > 0,
+                        enabled = selectedCount > 0 && !missingQty,
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth().height(50.dp)
                     ) {

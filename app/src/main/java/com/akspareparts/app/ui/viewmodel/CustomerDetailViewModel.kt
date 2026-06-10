@@ -104,9 +104,10 @@ class CustomerDetailViewModel(
         }
     }
 
+    /** Qty 0 means "not entered yet" - the UI blocks billing until it is >= 1. */
     fun setQty(index: Int, qty: Int) {
         _draft.value = _draft.value.mapIndexed { i, item ->
-            if (i == index) item.copy(qty = qty.coerceAtLeast(1)) else item
+            if (i == index) item.copy(qty = qty.coerceAtLeast(0)) else item
         }
     }
 
@@ -120,6 +121,7 @@ class CustomerDetailViewModel(
         val cust = customer.value ?: run { onError("Customer not loaded"); return }
         val selected = _draft.value.filter { it.selected }
         if (selected.isEmpty()) { onError("Select at least one part"); return }
+        if (selected.any { it.qty < 1 }) { onError("Enter a quantity for every selected part"); return }
         viewModelScope.launch {
             try {
                 val items = selected.map {
@@ -147,6 +149,7 @@ class CustomerDetailViewModel(
         val cust = customer.value ?: run { onError("Customer not loaded"); return }
         val selected = _draft.value.filter { it.selected }
         if (selected.isEmpty()) { onError("Select at least one part"); return }
+        if (selected.any { it.qty < 1 }) { onError("Enter a quantity for every selected part"); return }
         viewModelScope.launch {
             try {
                 val date = dateFmt.format(Date())
