@@ -1,11 +1,14 @@
 package com.akspareparts.app.pdf
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
 import android.net.Uri
+import com.akspareparts.app.R
 import com.akspareparts.app.data.BillItem
 import java.io.File
 import java.io.FileOutputStream
@@ -51,21 +54,37 @@ object BillPdfGenerator {
         val headerBg = Paint().apply { color = BLUE }
         val line = Paint().apply { color = Color.LTGRAY; strokeWidth = 1f }
 
-        // Header band
-        canvas.drawRect(0f, 0f, PAGE_W.toFloat(), 70f, headerBg)
+        // Header band: dark so the logo reads best, with brand logo at the left
+        val headerH = 86f
+        val darkHeaderBg = Paint().apply { color = Color.parseColor("#15171C") }
+        canvas.drawRect(0f, 0f, PAGE_W.toFloat(), headerH, darkHeaderBg)
+
+        var textStartX = MARGIN
+        try {
+            val logo = BitmapFactory.decodeResource(context.resources, R.drawable.ak_logo)
+            if (logo != null) {
+                val logoH = headerH - 20f
+                val logoW = logoH * logo.width / logo.height
+                canvas.drawBitmap(logo, null,
+                    RectF(MARGIN, 10f, MARGIN + logoW, 10f + logoH),
+                    Paint(Paint.FILTER_BITMAP_FLAG))
+                textStartX = MARGIN + logoW + 16f
+            }
+        } catch (_: Exception) { /* fall back to text-only header */ }
+
         val whiteTitle = Paint(title).apply { color = Color.WHITE }
-        canvas.drawText("AK Spareparts", MARGIN, 46f, whiteTitle)
-        canvas.drawText("Auto Parts Invoice", PAGE_W - MARGIN - 130f, 46f,
-            Paint(headerText).apply { isFakeBoldText = false })
+        canvas.drawText("AK Spareparts", textStartX, 46f, whiteTitle)
+        canvas.drawText("Auto Parts Invoice", textStartX, 66f,
+            Paint(headerText).apply { isFakeBoldText = false; color = Color.LTGRAY })
 
         // Customer + date block
-        var y = 100f
+        var y = headerH + 30f
         canvas.drawText("Bill To:", MARGIN, y, labelBold)
         canvas.drawText(data.customerName, MARGIN + 50f, y, label)
         y += 18f
         canvas.drawText("City:", MARGIN, y, labelBold)
         canvas.drawText(data.city, MARGIN + 50f, y, label)
-        canvas.drawText("Date: ${data.date}", PAGE_W - MARGIN - 160f, 100f, label)
+        canvas.drawText("Date: ${data.date}", PAGE_W - MARGIN - 160f, headerH + 30f, label)
 
         // Table header
         y += 30f
